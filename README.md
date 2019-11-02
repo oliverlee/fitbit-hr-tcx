@@ -1,4 +1,4 @@
-# fitbix-hr-tcx
+# fitbit-hr-tcx
 Merge Fitbit heartrate data into tcx files.
 
 ## setup
