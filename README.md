@@ -12,10 +12,10 @@ oliver@canopus:~/repos/fitbit-hr-tcx$ conda env create --file environment.yml
 
 and then activate it with:
 ``` bash
-oliver@canopus:~/repos/fitbit-hr-tcx$ conda activate fitbit-hr-tcx
+oliver@canopus:~/repos/fitbit-hr-tcx$ conda activate fitbit
 ```
 
-## usage
+## authorization
 The script queries the Fitbit web API to obtain the intraday heart rate data
 during the time span of a tcx file.
 
@@ -39,6 +39,14 @@ Values for other fields are unimportant.
 The first time this script runs, the user will need authorize it. An access
 token is saved to `.fitbit.token` which is used in all future requests to the
 Fitbit API.
+
+## usage
+Do something like this:
+``` bash
+(fitbit) oliver@canopus:~/repos/fitbit-hr-tcx$ ./fitbit-hr-tcx.py 20191101-HellHathNoFury.tcx > 20191101-HellHatNoFury-hr.tcx
+Using default client file '.fitbit.client'
+All done! ❤️ ❤️
+```
 
 Note, this currently does not handle activities spanning multiple days.
 

@@ -1,4 +1,4 @@
-name: fitbit-hr-tcx
+name: fitbit
 channels:
   - defaults
 dependencies:
