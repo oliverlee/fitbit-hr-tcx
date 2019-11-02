@@ -12,6 +12,9 @@ import threading
 import webbrowser
 from xml.dom import minidom
 
+DEFAULT_TOKEN_FILE = ".fitbit.token"
+DEFAULT_CLIENT_FILE = ".fitbit.client"
+
 
 class OAuth2Server:
     def __init__(
@@ -19,7 +22,7 @@ class OAuth2Server:
         client_id,
         client_secret,
         redirect_uri="http://127.0.0.1:8080/",
-        token_file="fitbit.token",
+        token_file=DEFAULT_TOKEN_FILE,
     ):
         """ Initialize the FitbitOauth2Client. """
         self.token_file = token_file
@@ -75,14 +78,19 @@ class OAuth2Server:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print(f"{__file__} <client-file> <tcx-file>")
+    if len(sys.argv) < 2:
+        print(f"{__file__} <tcx-file> [client-file]")
         sys.exit(1)
 
-    with open(sys.argv[1]) as f:
+    try:
+        client_file = sys.argv[2]
+    except IndexError:
+        print(f"Using default client file '{DEFAULT_CLIENT_FILE}'")
+        client_file = DEFAULT_CLIENT_FILE
+    with open(client_file) as f:
         client = json.load(f)
 
-    xmldoc = minidom.parse(sys.argv[2])
+    xmldoc = minidom.parse(sys.argv[1])
     times = xmldoc.getElementsByTagName("Time")
     times = [times[0], times[-1]]
     start, end = [t.childNodes[0].data for t in times]

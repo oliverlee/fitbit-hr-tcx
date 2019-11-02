@@ -37,7 +37,7 @@ When registering an application, use:
 Values for other fields are unimportant.
 
 The first time this script runs, the user will need authorize it. An access
-token is saved to `fitbit.token` which is used in all future requests to the
+token is saved to `.fitbit.token` which is used in all future requests to the
 Fitbit API.
 
 Note, this currently does not handle activities spanning multiple days.
