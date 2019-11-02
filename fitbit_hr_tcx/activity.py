@@ -107,8 +107,8 @@ class Activity:
 
     def merge_heart_rate(self, heart_rate_samples: List[HeartRateSample]):
         """ Merge heart rate data into the existing activity. """
-        # Methods __eq__ and __lt__ are defined with for HeartRateSample so
-        # that's always on the left side.
+        # Methods __eq__ and __lt__ are defined for `HeartRateSample` so that's
+        # always on the left side.
         iter_a = iter(heart_rate_samples)
         iter_b = iter(self.times)
 
