@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+try:
+    from termcolor import cprint
+except ImportError:
+    # status messages won't look as cool
+    pass
 import json
 from pprint import pprint
 import sys
@@ -10,6 +15,14 @@ from fitbit_hr_tcx.oauth2server import OAuth2Server
 DEFAULT_CLIENT_FILE = ".fitbit.client"
 
 
+def eprint(*args, **kwargs):
+    if "termcolor" in sys.modules:
+        cprint(*args, file=sys.stderr, **kwargs)
+    else:
+        kwargs.pop("attrs", None)
+        print(*args, file=sys.stderr, **kwargs)
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(f"{__file__} <tcx-file> [client-file]")
@@ -18,7 +31,7 @@ if __name__ == "__main__":
     try:
         client_file = sys.argv[2]
     except IndexError:
-        print(f"Using default client file '{DEFAULT_CLIENT_FILE}'")
+        eprint(f"Using default client file '{DEFAULT_CLIENT_FILE}'")
         client_file = DEFAULT_CLIENT_FILE
     with open(client_file) as f:
         client = json.load(f)
@@ -29,3 +42,4 @@ if __name__ == "__main__":
     hr = activity.get_heart_rate(server)
     activity.merge_heart_rate(hr)
     print(activity.xml.toxml())
+    eprint("All done! ❤️ ❤️ ", attrs=["bold"])

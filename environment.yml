@@ -2,8 +2,9 @@ name: fitbit-hr-tcx
 channels:
   - defaults
 dependencies:
+  - pip
   - python-dateutil
   - requests-oauthlib
-  - pip
+  - termcolor
   - pip:
       - git+https://github.com/orcasgit/python-fitbit.git
