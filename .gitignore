@@ -3,3 +3,7 @@
 
 # fitbit api access token
 .fitbit.token
+
+# ignore python cache
+__pycache__/
+*.pyc
