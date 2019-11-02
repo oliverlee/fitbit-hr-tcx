@@ -1,0 +1,5 @@
+# fitbit api client info
+.fitbit.client
+
+# fitbit api access token
+.fitbit.token
