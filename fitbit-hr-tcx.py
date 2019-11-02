@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from datetime import datetime
 import json
 from pprint import pprint
 import sys
@@ -27,12 +26,6 @@ if __name__ == "__main__":
     server = OAuth2Server(client["id"], client["secret"])
     activity = Activity(sys.argv[1])
 
-    hr = server.fitbit.intraday_time_series(
-        "activities/heart",
-        base_date=activity.start(),
-        detail_level="1sec",
-        start_time=activity.start(),
-        end_time=activity.end(),
-    )["activities-heart-intraday"]["dataset"]
-
-    pprint(hr)
+    hr = activity.get_heart_rate(server)
+    activity.merge_heart_rate(hr)
+    print(activity.xml.toxml())
