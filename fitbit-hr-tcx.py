@@ -40,6 +40,12 @@ if __name__ == "__main__":
     activity = Activity(sys.argv[1])
 
     hr = activity.get_heart_rate(server)
+    if not hr:
+        eprint("Didn't get no heart rates. Try syncing your fitbit? 🌀☁️ ",
+        "yellow",
+        attrs=["bold"])
+        sys.exit(1)
+
     activity.merge_heart_rate(hr)
     print(activity.xml.toxml())
-    eprint("All done! ❤️ ❤️ ", attrs=["bold"])
+    eprint("All done! 💞✨", attrs=["bold"])
