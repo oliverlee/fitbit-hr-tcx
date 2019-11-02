@@ -43,7 +43,7 @@ Fitbit API.
 ## usage
 Do something like this:
 ``` bash
-(fitbit) oliver@canopus:~/repos/fitbit-hr-tcx$ ./fitbit-hr-tcx.py 20191101-HellHathNoFury.tcx > 20191101-HellHatNoFury-hr.tcx
+(fitbit) oliver@canopus:~/repos/fitbit-hr-tcx$ ./fitbit-hr-tcx.py 20191101-HellHathNoFury.tcx > 20191101-HellHathNoFury-hr.tcx
 Using default client file '.fitbit.client'
 All done! ❤️ ❤️
 ```
