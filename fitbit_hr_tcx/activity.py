@@ -36,7 +36,7 @@ class HeartRateSample:
         elif isinstance(other, minidom.Element):
             return self.sample_time_isoformat == other.childNodes[0].data
         elif isinstance(other, Record):
-            ts = other.timestamp.replace().astimezone(self.sample_time.tzinfo)
+            ts = other.timestamp.replace(tzinfo=tz.UTC)
             return self.sample_time == ts
 
     def __lt__(self, other):
@@ -46,7 +46,7 @@ class HeartRateSample:
         elif isinstance(other, minidom.Element):
             return self.sample_time_isoformat < other.childNodes[0].data
         elif isinstance(other, Record):
-            ts = other.timestamp.replace().astimezone(self.sample_time.tzinfo)
+            ts = other.timestamp.replace(tzinfo=tz.UTC)
             return self.sample_time < ts
 
     def __str__(self):
@@ -63,12 +63,16 @@ class Activity:
     def __init__(self, filename: str):
         """ Initialize the Activity. """
         if filename.endswith(".fit"):
-            self.fit = FitFile.open("copy.fit")
+            self.fit = FitFile.open(filename)
             self.source = self.Source.GARMIN
 
             self.records = [msg for msg in self.fit if isinstance(msg, Record)]
-            self._start = self.records[0].timestamp
-            self._end = self.records[-1].timestamp
+            eprint(self.records[0])
+            # No timezone info so just set to UTC.
+            self._start = self.records[0].timestamp.replace(tzinfo=tz.UTC)
+            eprint(self._start)
+            self._end = self.records[-1].timestamp.replace(tzinfo=tz.UTC)
+            eprint(self._end)
 
             return
         else:
