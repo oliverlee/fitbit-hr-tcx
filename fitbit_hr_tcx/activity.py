@@ -9,6 +9,10 @@ from xml.dom import minidom
 
 from fitbit_hr_tcx.oauth2server import OAuth2Server
 
+import sys
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
 
 class HeartRateSample:
     def __init__(self, sample_time: datetime, bpm: int):
@@ -60,12 +64,21 @@ class Activity:
             times = times[1:]
             self.source = self.Source.STRAVA
         else:
-            self.source = self.Source.SUFFERFEST
+            creator_node = self.xml.getElementsByTagName("Creator")[0]
+            name_node = creator_node.childNodes[1]
+            if name_node.childNodes[0].data == "The Sufferfest Training System":
+                self.source = self.Source.SUFFERFEST
+            else:
+                self.source = self.Source.GARMIN
 
         # Cleanup time format if invalid isoformat
         for t in times:
-            if t.childNodes[0].data.endswith("Z"):
+            if self.source == self.Source.STRAVA:
+                # Strava timestamps end with 'Z'
                 t.childNodes[0].data = t.childNodes[0].data[:-1] + "+00:00"
+            elif self.source == self.Source.GARMIN:
+                # Garmin timestamps end with '.000Z' and we don't care about milliseconds.
+                t.childNodes[0].data = t.childNodes[0].data[:-5] + "+00:00"
 
         self.times = times
 
@@ -121,7 +134,7 @@ class Activity:
 
         if self.source == self.Source.STRAVA:
             e = xml.createElement("gpxtpx:hr")
-        elif self.source == self.Source.SUFFERFEST:
+        else:
             e = xml.createElement("Value")
 
         e.appendChild(xml.createTextNode(str(heart_rate_bpm)))
@@ -159,7 +172,7 @@ class Activity:
                         tpe_node = c
                         break
                 tpe_node.appendChild(heart_rate_node)
-            elif self.source == self.Source.SUFFERFEST:
+            else:
                 time_node.parentNode.appendChild(heart_rate_node)
 
         # Methods __eq__ and __lt__ are defined for `HeartRateSample` so that's
@@ -172,12 +185,15 @@ class Activity:
         while True:
             try:
                 if a == b:
+                    eprint(f'time match: {a.sample_time_isoformat} {b.childNodes[0].data}')
                     insert(b, self.create_heart_rate_element(a.bpm))
                     a = next(iter_a)
                     b = next(iter_b)
                 elif a < b:
+                    eprint(f'hr skip:    {a.sample_time_isoformat} {b.childNodes[0].data}')
                     a = next(iter_a)
                 else:
+                    eprint(f'gps skip:   {a.sample_time_isoformat} {b.childNodes[0].data}')
                     b = next(iter_b)
             except StopIteration:
                 break
