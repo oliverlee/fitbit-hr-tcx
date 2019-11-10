@@ -49,5 +49,15 @@ if __name__ == "__main__":
         sys.exit(1)
 
     activity.merge_heart_rate(hr)
-    print(activity.xml.toxml())
+
+    try:
+        print(activity.xml.toxml())
+    except AttributeError:
+        import sys
+        sys.path.append("/Users/oliver/repos/fit")
+        import fit
+        from fit import FitFile
+        with FitFile.open("copy.fit", mode="w") as fout:
+            fout.copy(activity.fit)
+
     eprint("All done! 💞✨", attrs=["bold"])
