@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, time, tzinfo
 from dateutil import tz
+import enum
 from statistics import mean
 from typing import List, Optional
 from xml.dom import minidom
@@ -38,10 +39,16 @@ class HeartRateSample:
 
 
 class Activity:
+    class Source(enum.Enum):
+        SUFFERFEST = enum.auto()
+        STRAVA = enum.auto()
+        GARMIN = enum.auto()
+
     def __init__(self, tcx_file: str):
         """ Initialize the Activity. """
         self.xml = minidom.parse(tcx_file)
 
+        # Determine the activity source and find all the 'time' elements.
         times = self.xml.getElementsByTagName("Time")
         if not times:
             # Try again with lower case
@@ -51,9 +58,9 @@ class Activity:
             assert times[1].parentNode.tagName == "trkpt"
             assert times[-1].parentNode.tagName == "trkpt"
             times = times[1:]
-            self.extension = True
+            self.source = self.Source.STRAVA
         else:
-            self.extension = False
+            self.source = self.Source.SUFFERFEST
 
         # Cleanup time format if invalid isoformat
         for t in times:
@@ -106,20 +113,20 @@ class Activity:
         """
         xml = self.xml
 
-        if self.extension and heart_rate_type is not None:
+        if self.source == self.Source.STRAVA and heart_rate_type is not None:
             raise NotImplementedError(
                 "Heart Rate Element is not defined when using 'TrackPointExtension'"
                 f"and 'heart_rate_type' {heart_rate_type}."
             )
 
-        if self.extension:
+        if self.source == self.Source.STRAVA:
             e = xml.createElement("gpxtpx:hr")
-        else:
+        elif self.source == self.Source.SUFFERFEST:
             e = xml.createElement("Value")
 
         e.appendChild(xml.createTextNode(str(heart_rate_bpm)))
 
-        if self.extension:
+        if self.source == self.Source.STRAVA:
             return e
 
         if heart_rate_type is None:
@@ -142,7 +149,7 @@ class Activity:
             """ Insert the heart rate node in the right place. """
             is_element = lambda x: isinstance(x, minidom.Element)
 
-            if self.extension:
+            if self.source == self.Source.STRAVA:
                 for c in filter(is_element, time_node.parentNode.childNodes):
                     if c.tagName == "extensions":
                         extension_node = c
@@ -152,7 +159,7 @@ class Activity:
                         tpe_node = c
                         break
                 tpe_node.appendChild(heart_rate_node)
-            else:
+            elif self.source == self.Source.SUFFERFEST:
                 time_node.parentNode.appendChild(heart_rate_node)
 
         # Methods __eq__ and __lt__ are defined for `HeartRateSample` so that's
