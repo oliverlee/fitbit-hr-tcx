@@ -8,3 +8,4 @@ dependencies:
   - termcolor
   - pip:
       - git+https://github.com/orcasgit/python-fitbit.git
+      - git+https://github.com/dtcooper/python-fitparse.git
