@@ -2,11 +2,22 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, time, tzinfo
 from dateutil import tz
+import enum
 from statistics import mean
 from typing import List, Optional
 from xml.dom import minidom
 
 from fitbit_hr_tcx.oauth2server import OAuth2Server
+
+import sys
+sys.path.append("/Users/oliver/repos/fit")
+import fit
+from fit import FitFile
+from fit.messages.activity import Record
+
+import sys
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
 
 
 class HeartRateSample:
@@ -21,16 +32,22 @@ class HeartRateSample:
     def __eq__(self, other):
         """ Compare sample time of self and other for equality. """
         if isinstance(other, HeartRateSample):
-            return self.sample_time == self.sample_time
+            return self.sample_time == other.sample_time
         elif isinstance(other, minidom.Element):
             return self.sample_time_isoformat == other.childNodes[0].data
+        elif isinstance(other, Record):
+            ts = other.timestamp.replace(tzinfo=tz.UTC)
+            return self.sample_time == ts
 
     def __lt__(self, other):
         """ Check if sample time of self is less than sample time of other. """
         if isinstance(other, HeartRateSample):
-            return self.sample_time < self.sample_time
+            return self.sample_time < other.sample_time
         elif isinstance(other, minidom.Element):
             return self.sample_time_isoformat < other.childNodes[0].data
+        elif isinstance(other, Record):
+            ts = other.timestamp.replace(tzinfo=tz.UTC)
+            return self.sample_time < ts
 
     def __str__(self):
         """ Return a string representation of a HeartRateSample. """
@@ -38,27 +55,53 @@ class HeartRateSample:
 
 
 class Activity:
-    def __init__(self, tcx_file: str):
-        """ Initialize the Activity. """
-        self.xml = minidom.parse(tcx_file)
+    class Source(enum.Enum):
+        SUFFERFEST = enum.auto()
+        STRAVA = enum.auto()
+        GARMIN = enum.auto()
 
+    def __init__(self, filename: str):
+        """ Initialize the Activity. """
+        if filename.endswith(".fit"):
+            self.fit = FitFile.open(filename)
+            self.source = self.Source.GARMIN
+
+            self.records = [msg for msg in self.fit if isinstance(msg, Record)]
+            eprint(self.records[0])
+            # No timezone info so just set to UTC.
+            self._start = self.records[0].timestamp.replace(tzinfo=tz.UTC)
+            eprint(self._start)
+            self._end = self.records[-1].timestamp.replace(tzinfo=tz.UTC)
+            eprint(self._end)
+
+            return
+        else:
+            self.xml = minidom.parse(filename)
+
+        # Determine the activity source and find all the 'time' elements.
         times = self.xml.getElementsByTagName("Time")
         if not times:
             # Try again with lower case
             times = self.xml.getElementsByTagName("time")
             # Skip the first one since it's in a metadata element
             assert times[0].parentNode.tagName == "metadata"
+            metadata_node = times[0].parentNode
+
             assert times[1].parentNode.tagName == "trkpt"
             assert times[-1].parentNode.tagName == "trkpt"
             times = times[1:]
-            self.extension = True
+
+            self.source = self.Source.STRAVA
         else:
-            self.extension = False
+            creator_node = self.xml.getElementsByTagName("Creator")[0]
+            name_node = creator_node.childNodes[1]
+            assert(name_node.childNodes[0].data == "The Sufferfest Training System")
+            self.source = self.Source.SUFFERFEST
 
         # Cleanup time format if invalid isoformat
         for t in times:
-            if t.childNodes[0].data.endswith("Z"):
-                t.childNodes[0].data = t.childNodes[0].data[:-1] + "+00:00"
+            # Strava timestamps end with 'Z'
+            t.childNodes[0].data = t.childNodes[0].data[:-1] + "+00:00"
 
         self.times = times
 
@@ -106,20 +149,25 @@ class Activity:
         """
         xml = self.xml
 
-        if self.extension and heart_rate_type is not None:
+        if self.source == self.Source.STRAVA and heart_rate_type is not None:
             raise NotImplementedError(
-                "Heart Rate Element is not defined when using 'TrackPointExtension'"
+                "Heart Rate Element is not defined when using 'TrackPointExtension' "
                 f"and 'heart_rate_type' {heart_rate_type}."
             )
 
-        if self.extension:
+        if self.source == self.Source.STRAVA:
             e = xml.createElement("gpxtpx:hr")
-        else:
+        elif self.source == self.Source.SUFFERFEST:
             e = xml.createElement("Value")
+        elif self.source == self.Source.GARMIN:
+            e = xml.createElement("ns3:hr")
+        else:
+            raise NotImplementedError(
+                "Creating a heart rate element is not implemented for {self.source}.")
 
         e.appendChild(xml.createTextNode(str(heart_rate_bpm)))
 
-        if self.extension:
+        if self.source != self.Source.SUFFERFEST:
             return e
 
         if heart_rate_type is None:
@@ -142,38 +190,64 @@ class Activity:
             """ Insert the heart rate node in the right place. """
             is_element = lambda x: isinstance(x, minidom.Element)
 
-            if self.extension:
+            if self.source == self.Source.STRAVA:
                 for c in filter(is_element, time_node.parentNode.childNodes):
                     if c.tagName == "extensions":
                         extension_node = c
                         break
                 for c in filter(is_element, extension_node.childNodes):
                     if c.tagName == "gpxtpx:TrackPointExtension":
-                        tpe_node = c
+                        tpx_node = c
                         break
-                tpe_node.appendChild(heart_rate_node)
-            else:
+                tpx_node.appendChild(heart_rate_node)
+            elif self.source == self.Source.SUFFERFEST:
                 time_node.parentNode.appendChild(heart_rate_node)
+            elif self.source == self.Source.GARMIN:
+                for c in filter(is_element, time_node.parentNode.childNodes):
+                    if c.tagName == "extensions":
+                        extension_node = c
+                        break
+                for c in filter(is_element, extension_node.childNodes):
+                    if c.tagName == "ns3:TrackPointExtension":
+                        tpx_node = c
+                        break
+                tpx_node.appendChild(heart_rate_node)
+            else:
+                raise NotImplementedError(
+                    f"Merging heart rate is not implemented for {self.source}.")
 
         # Methods __eq__ and __lt__ are defined for `HeartRateSample` so that's
         # always on the left side.
         iter_a = iter(heart_rate_samples)
-        iter_b = iter(self.times)
+        if self.source == self.Source.GARMIN:
+            iter_b = iter(self.records)
+        else:
+            iter_b = iter(self.times)
 
         a = next(iter_a)
         b = next(iter_b)
         while True:
             try:
                 if a == b:
-                    insert(b, self.create_heart_rate_element(a.bpm))
-                    a = next(iter_a)
+                    if self.source == self.Source.GARMIN:
+                        b.heart_rate = a.bpm
+                    else:
+                        insert(b, self.create_heart_rate_element(a.bpm))
                     b = next(iter_b)
                 elif a < b:
                     a = next(iter_a)
                 else:
+                    # Just use the last available bpm value.
+                    if self.source == self.Source.GARMIN:
+                        b.heart_rate = a.bpm
+                    else:
+                        insert(b, self.create_heart_rate_element(a.bpm))
                     b = next(iter_b)
             except StopIteration:
                 break
+
+        if self.source == self.Source.GARMIN:
+            return
 
         # Update max and average heart rate as well.
         max_hr = self.xml.getElementsByTagName("MaximumHeartRateBpm")
